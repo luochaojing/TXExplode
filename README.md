@@ -28,7 +28,7 @@
 ```
 
 
-![image](https://github.com/luochaojing/TXExplode/blob/master/TXExplodeDemo_gif.gif)
+![image](https://github.com/luochaojing/TXExplode/blob/master/2.gif)
 
 
 
