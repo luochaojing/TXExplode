@@ -27,4 +27,8 @@
 @end
 ```
 
-![image](https://github.com/luochaojing/TXExplode/TXExplodeDemo_gif.gif)
+
+![image](https://github.com/luochaojing/TXExplode/blob/master/TXExplodeDemo_gif.gif)
+
+
+
