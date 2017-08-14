@@ -11,64 +11,16 @@
 #import <objc/runtime.h>
 
 
-static const NSString *kTXExplodeDelegateKeyString = @"kTXExplodeDelegateKeyString";
-static const NSString *kOutExplodeDelegateKeyString = @"kOutExplodeDelegateKeyString";
+static NSString *const kTXExplodeDelegateKeyString = @"kTXExplodeDelegateKeyString";
+static NSString *const kOutExplodeDelegateKeyString = @"kOutExplodeDelegateKeyString";
 
-static const NSString *kTXExplodeAnimFirstKey = @"kTXExplodeAnimFirstKey";
-static const NSString *kTXExplodeAnimFirstValue = @"kTXExplodeAnimFirstValue";
-static const NSString *kTXExplodeAnimLastKey = @"kTXExplodeAnimLastKey";
-static const NSString *kTXExplodeAnimLastValue = @"kTXExplodeAnimLastValue";
-static const NSString *kTXExplodeAnimLayerKey = @"kTXExplodeAnimLayerKey";
+static NSString *const kTXExplodeAnimFirstKey = @"kTXExplodeAnimFirstKey";
+static NSString *const kTXExplodeAnimFirstValue = @"kTXExplodeAnimFirstValue";
 
-#pragma mark - 代理类
+static NSString *const kTXExplodeAnimLastKey = @"kTXExplodeAnimLastKey";
+static NSString *const kTXExplodeAnimLastValue = @"kTXExplodeAnimLastValue";
 
-@interface TXExplodeDelegate : NSObject<CAAnimationDelegate>
-
-@property (weak, nonatomic) UIView *txSuperView;
-
-@end
-
-@implementation TXExplodeDelegate
-
-- (void)animationDidStart:(CAAnimation *)anim
-{
-    //在这里接受很多个事件统一处理
-    //怎么判断哪个是第一个呢
-    
-    if ([[anim valueForKey:[NSString stringWithFormat:@"%@", kTXExplodeAnimFirstKey]] isEqualToString:[NSString stringWithFormat:@"%@", kTXExplodeAnimFirstValue]]) {
-        
-        NSLog(@"动画开始");
-        
-        if ([self.txSuperView.txExDelegate respondsToSelector:@selector(txExplodeAnimDidStart)]) {
-            
-            [self.txSuperView.txExDelegate txExplodeAnimDidStart];
-        }
-        
-    }
-}
-
-- (void)animationDidStop:(CAAnimation *)anim finished:(BOOL)flag
-{
-    //获取到layer
-    NSString *layerKey = [NSString stringWithFormat:@"%@", kTXExplodeAnimLayerKey];
-
-    CALayer *layer = [anim valueForKey:layerKey];
-    
-    
-    if (layer) {
-        NSLog(@"获取到layer");
-    }
-    
-    if ([[anim valueForKey:[NSString stringWithFormat:@"%@", kTXExplodeAnimLastKey]] isEqualToString:[NSString stringWithFormat:@"%@", kTXExplodeAnimLastValue]]) {
-        
-        NSLog(@"动画结束");
-        if ([self.txSuperView.txExDelegate respondsToSelector:@selector(txExplodeAnimDidEnd)]) {
-            
-            [self.txSuperView.txExDelegate txExplodeAnimDidEnd];
-        }
-    }
-}
-@end
+static NSString *const kTXExplodeAnimLayerKey = @"kTXExplodeAnimLayerKey";
 
 
 #pragma mark - 碎片类
@@ -85,7 +37,52 @@ static const NSString *kTXExplodeAnimLayerKey = @"kTXExplodeAnimLayerKey";
 @end
 
 
-#pragma mark - 匿名函数
+#pragma mark - 代理类
+
+/**
+ 真实的代理，将繁杂的动画回调处理后传给外部代理
+ */
+@interface TXExplodeDelegate : NSObject<CAAnimationDelegate>
+
+@property (weak, nonatomic) UIView *txSuperView;
+
+@end
+
+@implementation TXExplodeDelegate
+
+- (void)animationDidStart:(CAAnimation *)anim
+{
+    if ([[anim valueForKey:kTXExplodeAnimFirstKey] isEqualToString:kTXExplodeAnimFirstValue]) {
+        
+        if ([self.txSuperView.txExDelegate respondsToSelector:@selector(txExplodeAnimDidStartView:)])
+        {
+            [self.txSuperView.txExDelegate txExplodeAnimDidStartView:self.txSuperView];
+        }
+    }
+}
+
+- (void)animationDidStop:(CAAnimation *)anim finished:(BOOL)flag
+{
+    //获取到layer
+    YDParticleLayer *layer = [anim valueForKey:kTXExplodeAnimLayerKey];
+    if ([layer isKindOfClass:[YDParticleLayer class]]) {
+        [layer removeFromSuperlayer];
+    }
+    
+    if ([[anim valueForKey:kTXExplodeAnimLastKey] isEqualToString:kTXExplodeAnimLastValue]) {
+        
+        if ([self.txSuperView.txExDelegate respondsToSelector:@selector(txExplodeAnimDidEndView:)]) {
+            
+            [self.txSuperView.txExDelegate txExplodeAnimDidEndView:self.txSuperView];
+        }
+    }
+}
+@end
+
+
+
+
+#pragma mark - 匿名类
 
 @interface UIView ()
 
@@ -117,7 +114,7 @@ static const NSString *kTXExplodeAnimLayerKey = @"kTXExplodeAnimLayerKey";
 }
 
 
-- (void)explodeWithPartsNum:(NSInteger)partNum
+- (void)explodeWithPartsNum:(NSInteger)partNum timeInterval:(NSTimeInterval)timeInterval
 {
     
     //生成一个代理
@@ -149,9 +146,6 @@ static const NSString *kTXExplodeAnimLayerKey = @"kTXExplodeAnimLayerKey";
     {
         [(UIImageView *)self setImage:nil];
     }
-    
-    NSLog(@"分割完毕");
-
     
     //所以的子层
     [self.layer.sublayers makeObjectsPerformSelector:@selector(removeFromSuperlayer)];
@@ -211,7 +205,7 @@ static const NSString *kTXExplodeAnimLayerKey = @"kTXExplodeAnimLayerKey";
         
         float r = [self randomFloat];
         
-        NSTimeInterval speed = 3 * r;//2.35
+        NSTimeInterval speed = timeInterval * r;//2.35
         
         CAKeyframeAnimation *transformAnim = [CAKeyframeAnimation animationWithKeyPath:@"transform"];
         
@@ -254,32 +248,23 @@ static const NSString *kTXExplodeAnimLayerKey = @"kTXExplodeAnimLayerKey";
         
         //一组动画的标识
         
-        
+        //第一个碎片
         if (idx == 0) {
-            
-            NSString *animKey = [NSString stringWithFormat:@"%@", kTXExplodeAnimFirstKey];
-            NSString *animValue = [NSString stringWithFormat:@"%@", kTXExplodeAnimFirstValue];
-            [animGroup setValue:animValue forKey:animKey];
-
+            [animGroup setValue:kTXExplodeAnimFirstValue forKey:kTXExplodeAnimFirstKey];
         }
         
+        //最后一个
         else if (idx == sublayersArray.count - 1)
         {
-            NSString *animKey = [NSString stringWithFormat:@"%@", kTXExplodeAnimLastKey];
-            NSString *animValue = [NSString stringWithFormat:@"%@", kTXExplodeAnimLastValue];
-            [animGroup setValue:animValue forKey:animKey];
+            [animGroup setValue:kTXExplodeAnimLastValue forKey:kTXExplodeAnimLastKey];
         }
         
-
         animGroup.delegate = self.txExplodeDelegate;
         
-        NSString *layerKey = [NSString stringWithFormat:@"%@", kTXExplodeAnimLayerKey];
-        [animGroup setValue:layer forKey:layerKey];
-        
+        [animGroup setValue:layer forKey:kTXExplodeAnimLayerKey];
         [layer addAnimation:animGroup forKey:nil];
-        
-        //take it off screen
-        [layer setPosition:CGPointMake(-100, -100)];//-600
+        //移除
+        [layer setPosition:CGPointMake(-100, -100)];
         
         //设置代理
         animGroup.delegate = self.txExplodeDelegate;
@@ -331,7 +316,7 @@ static const NSString *kTXExplodeAnimLayerKey = @"kTXExplodeAnimLayerKey";
 }
 
 
-#pragma mark - 添加属性
+#pragma mark - 真实的代理
 
 - (void)setTxExplodeDelegate:(TXExplodeDelegate *)txExplodeDelegate
 {
@@ -345,6 +330,8 @@ static const NSString *kTXExplodeAnimLayerKey = @"kTXExplodeAnimLayerKey";
     return txExplodeDelegate;
 }
 
+
+#pragma mark - 外部代理
 
 - (void)setTxExDelegate:(id<TXExplodeAnimDelegate>)txExDelegate
 {
